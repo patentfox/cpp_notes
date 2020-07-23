@@ -243,3 +243,74 @@ p[1] = '0';     // undefined behavior, gives bus error on my mac
 ```
 
 ---
+
+## Function matching - Overload resolution
+
+This is used to decide which function to call when calling an overloaded
+function.\
+*Candidate functions* - Those functions which have same name and are visible.\
+*Viable functions* - Those candidate functions where number of arguments match,
+and types of argument and parameters are exact match, or argument is
+convertible to parameter type.\
+If the number of viable functions are more than 1, then following rules apply.
+
+Lets say there are 2 viable functions A and B. A will be selected if
+
+1. At least one argument is better match for A as compared to B.
+1. There is no argument of B which is a better match than A.
+
+If these conditions are not met, the function call is ambiguous, and a compiler
+error will be thrown.\
+Better match is the one which doesn't require type conversion. Here type
+conversion includes both narrowing and widening conversions.
+
+Examples
+
+```cpp
+void f(int a, int b) {      // (1)
+    cout << "Inside f(int a, int b)" << endl;
+}
+void f(int a, double b) {   // (2)
+    cout << "Inside f(int a, double b)" << endl;
+}
+void f(double a, double b) {    //(3)
+    cout << "Inside f(double a, double b)" << endl;
+}
+
+f(1, 2);     // (1)
+f(1.0, 2.0); // (3)
+f(1, 2.0);   // (2)
+f(1.0, 2);   // ERROR: ambiguous
+```
+
+There are further rules to determine which conversions rank above another,
+but having your code rely on those arcane rules is not a great practice.
+
+---
+
+## Function pointers
+
+Multiple ways to declare function pointer types
+
+```cpp
+double f(int, int);    // assume this function type
+
+int main() {
+    using ftype1 = double (int, int);           // (1)
+    // With trailing return type, auto is required at beginning
+    using ftype2 = auto (int, int) -> double;   // (2)
+    typedef double ftype3(int, int);            // (3)
+    ftype1* pf = f;
+
+    // Declarations above are easier than below, which works the same way.
+     double (*pf2)(int, int) = f;
+}
+```
+
+All the types defined in (1), (2) and (3) are equivalent.
+
+```cpp
+typedef decltype(f) ftype4;
+```
+
+This also works, but not in case the function `f` is overloaded.
