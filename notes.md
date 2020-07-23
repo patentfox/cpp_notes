@@ -116,3 +116,51 @@ variable, however `decltype(variable)` may or may not be a reference type
 depending on type of variable.
 
 ---
+
+## string
+
+### Different string constructors/initializers
+
+```cpp
+string s1;
+string s2 = s1;
+string s3(s2);
+string s4 = "Hello";
+string s5("Hello");
+string s6(3, 'c');      // "ccc"
+```
+
+`getline` function reads from stream upto and including where it finds a
+newline character, and stores it in the string, without newline character.\
+So, newline character is consumed from stream, but not stored in string.
+
+```cpp
+string line;
+while(getline(cin, line)) {
+    cout << line << endl;
+}
+```
+
+Some interesting behavior with string concatentation
+
+```cpp
+string s1 = "abc";
+string s2 = s1 + "def" + "ghi" + 'l'; // OK
+string s3 = "abc" + "def" + s1; // ERROR
+```
+
+Initialization of `s3` is invalid as one of the operands to `+` has to be a
+string. This is not a problem for `s2`, as `s1 + "def"` yields a temporary
+string object which can be valid left operand to + operator.
+
+Be careful while mixing signed and unsigned types in comparison expressions.
+This prints `false` (0) as i is converted to `unsigned int` which wraps up to a
+very large number.
+
+```cpp
+int i = -10;
+string::size_type j = 20;
+cout << (j > i) << endl;
+```
+
+---
