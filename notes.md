@@ -164,3 +164,82 @@ cout << (j > i) << endl;
 ```
 
 ---
+
+## Arrays
+
+Array initialization in 1 dimension
+
+```cpp
+int a1[10];  // possibly contains random values
+int a2[10] = {};    // All values are 0
+int a3[10] = {0};   // All values are 0
+int a4[10] = {1,2}; // All values after first 2 are 0
+// values starting from index 3 are 3, 4 and 5.
+// Rest all are 0, including before index 3
+int a5[10] = {[3] = 3,4,5};
+```
+
+Array initialization in multiple dimensions
+
+```
+int b1[3][4];   // random values
+// b2[0][0] is 1, rest all are 0
+int b2[3][4] = {1};
+// b[0][0] = 1, b[1][0] = 2, rest all are 0
+int b3[3][4] = {{1}, {2}};
+// b[0][0] = 1, b[1][0] = 2, b[1][1] = 3, rest all are 0
+int b4[3][4] = {{1},2,3};
+```
+
+Using range based for loop with multidimensional arrays
+
+```cpp
+int b[3][4] = {1,2,3,4,5,6,7,8,9,10,11,12};
+for(auto row : b) {         // (1) ERROR
+    for(auto col : row) {
+        cout << col << " ";
+    }
+    cout << endl;
+}
+```
+
+The above code does not compile. (1) tries to copy 1D array to row, which ends
+up copying the `int*` pointer. `int*` is not iterable using `begin()` method.
+Hence, this is an error.\
+The fix is simple. Change (1) to `const auto& row : b`
+
+Multidimension array and pointers
+
+```cpp
+int b[3][4] = {{1,2,3,4}, {5,6,7,8}, {9,10,11,12}};
+int (*p2)[4] = &b[1];       // (1)
+cout << p2[1][1] << endl;   // 10
+```
+
+The declaration in line (1) reads as: \
+p2 is a pointer to an array of 4 ints (inside out starting from variable name)
+starting from 5.\
+Thus, `p2[1]` is equal to the array `{9,10,11,12}`.\
+This is different from below
+
+```cpp
+int* p3[4];
+p3 = &b[1];     // ERROR
+p3[0] = b[1];   // OK
+```
+
+Here, p3 is an array of int pointers. Size of array is 4.
+
+---
+
+const_cast can be used to change a const to non const type. However, if the
+object was originally const, the result of writing to it after casting away
+constness is undefined.
+
+```cpp
+const char* str = "Kaustubh";
+char* p = const_cast<char*>(str);   // no error
+p[1] = '0';     // undefined behavior, gives bus error on my mac
+```
+
+---
