@@ -181,7 +181,7 @@ int a5[10] = {[3] = 3,4,5};
 
 Array initialization in multiple dimensions
 
-```
+```cpp
 int b1[3][4];   // random values
 // b2[0][0] is 1, rest all are 0
 int b2[3][4] = {1};
