@@ -611,3 +611,322 @@ This is not possible for non static members, as there is no implicit object
 from which the value can be taken.
 
 ---
+
+## IO classes
+
+IO classes (`istream`, `ostream` and their hierarchy) does not allow to copy or
+assign the objects from one to another (deleted copy and assign operators).\
+Hence, no method can take an i/ostream object parameter, or return an i/ostream
+object. The common way is to pass or return these as ordinary references.
+Passing a const reference is generally not useful, as any meaningful opreation
+including read or write, requires changing the internal state of i/ostream
+object.
+
+### using iostream::iostate
+
+i/ostream objects can have an internal state called `iostate` which indicates
+if the stream is good for read/write operations. It can have following states
+
+* `good` - all flags are clear. Equivalent to 0.
+* `bad` - generally indicates some serious unrecoverable error, like
+  hardware/driver failure.
+* `fail` - set when invalid input in encountered, like reading a string when an
+  int is expected.
+* `eof` - when end of file is encountered. fail bit is also set when eof is
+  found.
+
+`cin.fail()` method tests for both bad bit and fail bit. Hence, it is a good
+test to see if the stream is in correct state for processing input.
+
+```cpp
+while(cin >> i) {
+    // ...
+}
+while(!cin.fail()) {
+    // equivalent
+}
+```
+
+Internally this is implemented by `cin >> i` returning `cin`, and having
+i/ostream object overload `bool()` operator, which allows the object to be
+treated as a boolean value in valid contexts.
+
+There's a special class of type conversion operators which allows us to do that
+with user defined types (*note the lack of return type*).
+
+```cpp
+explicit operator bool() {
+    // ...
+    return true/false;
+}
+```
+
+This overloaded conversion operator defines a conversion from the enclosing type
+to `bool`.
+
+Getting back to i/ostream, we can manualy change the state of a stream using
+
+* `cin.setstate(iostream::ios_base::badbit)` adds `bad_bit` to current state.
+* `cin.clear()` clears the current state and sets it to good.
+* `cin.clear(iostream::ios_state::eofbit)` clears the current state and sets it
+  to `eofbit`.
+
+How to clear a single flag, i.e. just remove the bad state?
+
+```cpp
+cin.clear(cin.rdstate() & ~cin.badbit)
+```
+
+### stream flushing
+
+By default, `ostream` is buffered, which means that output may be written at a
+later time.\
+When is the stream flushed?
+
+* When endl or ends are used on stream.
+* When cout.flush() is explicitly called.
+* If stream manipulator `unitbuf` is used. It causes stream to flush after each
+  write. This behavior can be turned off again using `nounitbuf`
+* Reading from/writing to a tied stream.
+
+The last point requires more detail. An i/ostream can be tied to at max one
+`ostream`. Multiple i/ostreams can tie themselves to same `ostream`. If, on the
+stream which ties itself (`s1`) to ostream (`s2`), any read/write oepration
+occurs, `s2` will automatically be flushed.
+
+For example, `cin` and `cerr` are tied to `cout`. Whenever we read something
+from `cin`, or write something to `cerr`, `cout` is guaranteed to be flushed.
+
+```cpp
+cin.tie(&cout);     // for illustration
+ostream* current_tie = cin.tie();
+// break the existing tie and return it.
+ostream* current_tie = cin.tie(nullptr);
+```
+
+Some bullet points for file operations
+
+* Cannot open an opened file - puts the `ostream` in bad mode.
+* Can open a file either via constructor, or via an open call later.
+* File does not need to be closed explicitly. Uses RAII idiom.
+* We can close a file, and use same i/ostream object to open another file later.
+
+### File open modes
+
+1. You can find the file open flags in following classes/type aliases
+   * ios_base
+   * ios
+   * ofstream
+   * ifstream
+1. `in` mode is default for file opened by `ifstream`. `out | trunc` is default
+   for `ofstream`.
+1. `in | out` opens the file and seeks to begin. Any write will overwrite bytes
+   from beginning.
+1. `out` or `out|trunc` or `trunc` clobbers the file (deletes all contents)
+1. `app` or `out|app` seeks to end before writes (appends)
+1. `app|trunc` is invalid, results in file open error.
+1. `stringstream` is a lot like `iostream`. It offers 2 additional methods to
+   instantiate itself from `string` (for reading as `istringstream`) or return
+   the underlying string (`osstream.str()`)
+
+---
+
+## Sequential Containers
+
+Containers can hold almost all types (example of exception - references).\
+However, some operations, that can be performed on elements of containers,
+specify their own constraints on the element types. For example - Creating a
+vector using ctor which takes size is valid only for those element types which
+have a default ctor.
+
+Iterator operations like `iter + n` are only supported for containers which
+provide random access, like `vector`, `deque` etc. Not supported for `list` etc.
+
+sequential contianers define following type aliases
+
+1. `value_type`
+1. `reference`
+1. `const_reference`
+
+```cpp
+vector<string>::value_type s1 = "abc";
+// error, as non const lvalue reference cannot bind to unrelated type.
+vector<string>::reference s2 = "def";   // ERROR
+vector<string>::const_reference s3 = "ghi";    // OK
+```
+
+Prefix iterator increment operator yields lvalue, while postfix version yields
+rvalue.
+
+To get an iterator for a container, use functions like following
+
+```cpp
+vector<string> svec = {/*...*/};
+vector<string>::iterator it1 = svec.begin();
+// OK, will call overloaded version of begin() with const
+vector<string>::const_iterator it2 = svec.begin();  // OK
+vector<string>::iterator it3 = svec.cbegin();       // ERROR
+vector<string>::const_iterator it4 = svec.cbegin(); // OK
+vector<string>::const_iterator it5 = it1;   // OK, vice versa is not.
+const vector<string> csvec = {/*...*/};
+auto it6 = csvec.begin();   // it6 is const_iterator
+auto it7 = svec.cbegin();   // it7 is const_iterator
+```
+
+When using copy constructor for containers, both container type and element type
+must match. However, if you use iterator ranger version of ctor, container types
+do not have to match, however, elements must be convertible from source to
+destination type (implicitly at least).
+
+---
+
+## array
+
+`array` container has its size as a part of its type. So, array of size 10 is a
+different type from array of size 2.
+
+```cpp
+array<int, 3> arr1 = {1,2,3};
+// other elements are value initialized
+array<int, 3> arr2 = {1};   // OK
+// Array assignment like below is not allowed for C-style arrays
+decltype(arr1) arr3 = arr1; // OK, as types match
+```
+
+Some more operations on containers
+
+```cpp
+swap(c1, c2)    // Swaps contents (same type of container and elements)
+c1.swap(c2)
+c1.assign(n, elem)  // replace contents of c1 with n copies of elem
+c1.assign(<initializer_list>)
+c1.assign(beg_it, end_it)
+c1.assign(c2)   // ERROR, not available, except strings
+```
+
+`assign` operation is not valid on array type.
+
+`swap` operation runs in const time, as underlying storage is swapped. However,
+this is not the case for array, where elements are swapped one by one.
+
+containers allow the use of relational operators like <, == etc. However, these
+are valid only if the underlying element type supports these operations.
+
+most of the containers provide `insert` member function, that takes an iterator,
+and inserts the element before the iterator. This allows to insert an element at
+beginning as well as at end (using `end()` iterator)
+
+```cpp
+svec.insert(iter, "abc");
+svec.insert(iter, 10, "abc");
+svec.insert(iter, slist.begin(), slist.end());
+svec.insert(iter, {"abc", "def"});
+```
+
+Special note - source iterators must not be from the same container as
+destination, it will cause a runtime error.
+
+---
+
+`emplace` is the new operation added in C++11 which allows us to construct the
+elements in place rather than copy them to the container. The arguments are the
+same as those required by constructor of the element.
+
+```cpp
+// Assume following ctor
+Employee::Employee(string id, double salary) { ... }
+
+// Using emplace
+vector<Employee> vec;
+vec.emplace_back("emp-1", 5000.0);
+```
+
+There are other version like `emplace` and `emplace_front` corresponding to
+`insert` and `push_front` operations.
+
+---
+
+For containers which support indexing\
+`c[n]` is undefined if n is outside the range.\
+`c.at(n)` throws out_of_range exception instead.\
+`at` and subscript access to elements are only provided for containers that
+support fast random access.
+
+Access members return an ordinary reference, if the container is not a const
+object. So, following code is valid
+
+```cpp
+vector<int> vec = {1,2,3};
+cout << (v.front() = 4);    // 4
+```
+
+---
+
+## Erasing elements
+
+General form of erase operation is
+
+```cpp
+it = container.erase(it);
+it = container.erase(it1, it2);
+```
+
+In both the cases, the returned iterator is one after the last erased.
+
+```cpp
+// Delete all odd numbers from a vector
+vector<int> vec = {1,2,3,4,5,6,7,8,9};
+for (auto it = vec.begin(); it != vec.end();) {
+  if (*it % 2 != 0) {
+    it = vec.erase(it);
+  } else {
+    ++it;
+  }
+}
+```
+
+## forward_list
+
+> node1 --> node2
+
+Add new element
+
+> node3 --> node1 --> node2
+
+If we had an erase method for `forward_list`, which deletes the current element
+and returns the next element, the previous element's pointer will have to be
+updated to point to new next element. This is not possible. Hence,
+`forward_list` does not support methods like `erase`, `insert` or `emplace`.
+Instead it supports `erase_after`, `emplace_after` and `insert_after` which
+inserts or deletes after the current iterator.
+
+This creates a bit of a problem if we want to delete the 1st element in
+forward_list. Hence, we have a `before_begin` iterator especially available for
+`forward_list`.
+
+```cpp
+// Delete odd numbers from forward_list
+forward_list<int> fw = {1,2,3,4,5,6,7,8,9};
+auto it_prev = fw.before_begin(),
+      it_cur = fw.begin();
+while (it_cur != fw.end()) {
+  if (*it_cur%2 == 1) {
+    it_cur = fw.erase_after(it_prev);
+  } else {
+    it_prev = it_cur;
+    ++it_cur;
+  }
+}
+```
+
+`erase_after` returns the iterator to the next element after what was erased.
+
+### Iterator invalidation
+
+Pay special attention to how and when iterators get invalidated. Its common
+sense most of the times, but can be very subtle at some places.\
+For example, `push_back` on a vector can potentially invalidate iterators. If
+size of vector is equal to capacity, adding any new elements will trigger
+storage reallocation, which can invalidate existing iterators to the vector.
+
+---
