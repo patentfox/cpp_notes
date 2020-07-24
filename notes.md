@@ -381,3 +381,233 @@ private:
   non const version is a better match (among 2 viable functions)
 
 ---
+
+## Forward Declaration
+
+A class can be declared with just the class name, without the body.
+
+```cpp
+class Screen;
+```
+
+This allows the typename `Screen` to be used in limited ways before the whole
+class declaration is available. We cannot make an object of `Screen` before the
+class is completely defined, but we can declare pointers or references. For the
+same reason, a class cannot contain an object of its type, but can contain its
+reference or pointer.
+
+A friend declaration inside a class is allowed to be defined as well at same
+place. Not sure how this is useful though :)
+
+```cpp
+struct X {
+    friend void f() { ... }
+    X() { f(); }    // ERROR
+}
+```
+
+However, any use of `f()` is not allowed until the declaration of `f()` is seen
+outside the class as well.
+
+```cpp
+void f();
+struct X {
+    friend void f() { ... }
+    X() { f(); }    // OK
+}
+```
+
+Similarly, just declaring `f()` after the class is not enough. Declaration
+needs to be seen before its use.
+
+---
+
+When a member function is defined outside of a class, we need to use class name
+with scope resolution operator to indicate that the function belongs to the
+scope of specified class. Anything in function defintion that occurs after the
+name of function is automatically considered to belong to class scope.
+
+```cpp
+class A {
+public:
+    typedef std::vector<string>::size_type index;
+    index fun(index aa);
+}
+A::index A::fun(index aa) { ... }
+```
+
+In the above code, the parameter `aa`'s type is not required to be qualified
+with `A::`, but the return type has to be qualified, as it occurs before the
+function name (which contains `A::`).
+
+For name resolution, class definitions are processed in 2 phases.
+
+* All the member declarations are compiled first.
+* Function bodies are compiled only after the entire class has been seen.
+
+Thus, when defining inline functions, we can use data members in the body even
+if they are declared later in the class, as member definitions are processed
+after declarations.
+
+Order of initialization in constructor initializer list
+
+```cpp
+class X {
+public:
+    int j;
+    int i;
+
+    // WARN: field i is uninitialized when used here.
+    X(int a) : i(10), j(i * 10) {}
+};
+```
+
+The order of member initialization in constructor initializer list is always
+same as the order in which members are declared in class, NOT the one in which
+the appear in member initializer list.\
+The above code compiles but initializes `j` with garbage value of `i`.
+ALWAYS define the members in initializer list in same order as declared in the
+class definition.\
+Another useful practice is to only use constructor parameters for
+initialization of members.
+
+---
+
+## Implicit conversion
+
+Implicit conversions are allowed for user defined types using single argument
+constructors. Only one level of implicit conversion is allowed.
+
+```cpp
+class X {
+private:
+    string str;
+public
+    X(string s);
+}
+void fun(X xobj);
+```
+
+The above can be called as follows
+
+```cpp
+string s = "some string";
+fun(s);         // (1) allowed, implicit conversion
+fun("abc");     // (2) not allowed
+```
+
+(2) is not allowed, as it requires 2 conversions, `char*` to `string` and
+`string` to `X`.
+
+We can also prevent these implicit conversions by marking the constructor as
+`explicit`.
+
+```cpp
+explicit X(string s);
+```
+
+---
+
+## Aggregate Class
+
+It is a class whose object can be instantiated directly using a brace
+initialization syntax, much like plain a struct.
+
+```cpp
+class X {
+public:
+    int a;
+    string b;
+};
+// Intialization
+X xobj = {10, "abc"}
+```
+
+A class is an aggregate class if
+
+* It has only public members.
+* No user specified constructors.
+* No base class.
+* No in class initializers.
+* No virtual functions.
+
+Generally not a good idea to use it. If a member is added ever to the class,
+all the invocations will need to be updated.
+
+---
+
+## Literal class
+
+Literal classes are the ones where their objects can be created at compile time,
+and assigned to constexpr variables, i.e, the members are of a literal type.\
+This means, that the at least one constructor for a literal class have to be
+`constexpr`.\
+A constexpr constructor must initialize all the class members. For this to work,
+all data members must also be of literal type. The class must not define a
+custom destructor.
+
+Declaring a member method as `constexpr` does not implicitly make it a `const`
+method as well. This used to be the case in C++11, but was fixed later in C++17.
+
+---
+
+## static keyword
+
+Static data members must not be initialized inside the class. A definition has
+to be provided outside the class.
+
+```cpp
+class X {
+public:
+    static string str1 = "abc";         // ERROR
+    static const string str2 = "abc";   // ERROR
+    static string str3;
+    static const string str4;
+
+    static const int i1 = 10;           // OK
+    static int i2 = 10;                 // ERROR
+
+    static constexpr int i3;            // ERROR
+    static constexpr int i4 = 10;       // OK
+};
+
+// in .cpp file
+string X::str3 = "abc";
+const string X::str4 = "def";
+const int X::i1;
+constexpr int X::i4;
+```
+
+However, we are allowed to provide in-class initializer for static members of
+const integral type, for example, `i1`. It is strongly suggested to also define
+even the static const integral types outside the class, as simplest cases like
+taking the address of `i1` will cause compilation to fail otherwise.
+
+constexpr data members have to be declared as `static`, and be provided with an
+in class initializer. We still should define the member ouside class.
+
+static members can exist as incomplete types. This means, that the static member
+does not have to be fully defined at the point of its declaration.\
+Therefore, static members can be of the same type as their class
+
+```cpp
+class X {
+    // ...
+    static X obj1;
+    X* obj2;
+    X obj3;         // ERROR, X cannot contain an object of type X
+};
+```
+
+A static member can even be default argument for a class method. In above class,
+it is valid to declare a method such as
+
+```cpp
+...
+void foo(X = obj);
+```
+
+This is not possible for non static members, as there is no implicit object
+from which the value can be taken.
+
+---
