@@ -930,3 +930,395 @@ size of vector is equal to capacity, adding any new elements will trigger
 storage reallocation, which can invalidate existing iterators to the vector.
 
 ---
+
+### Capacity management
+
+`vector` and `string` allow us to manage memory allocation to a small extent by
+exposing following members. Though they should not be required in most cases.
+
+1. `c.capacity()` - returns the number of elements container can hold.
+   Always >= size
+1. `c.shrink_to_fit()` - reduce the capacity to size. Implementation is free to
+   ignore this.
+1. `c.reserve(n)` - Reserve space for atleast n elements. Has no effect if n is
+   smaller than or equal to current capacity.
+1. `c.resize(n)` - Has no effect on capacity, only on size.
+
+---
+
+### Ways to create strings
+
+```cpp
+string s1;
+string s2 = s1;
+string s3 = "Hello";
+string s4(10, 'a');   // a repeated 10 times
+string s5(s4);
+string s6(s5.begin(), s5.end());
+string s7 = {'a','b'};
+string s8("abc",2);   // first 2 characters, valid for char arrays
+string s9("abc");
+string s10(s3, 2);    // "llo", characters from 2 to end, contrast against s8
+string s11(s3, 2, 3); // "llo", start from 2, 3 characters
+```
+
+substr operation
+
+```cpp
+string s1 = "hello world";
+string s2 = s1.substr(0,5);   // "hello", 5 characters from index 0
+string s3 = s1.substr(6);     // "world", all characters from index 6 to end.
+```
+
+Throws `out_of_range` exception if string is smaller than attempted substring.
+
+```cpp
+str1.assign(str2);      // replace contents of str1 with str2
+char* cp = "hello world";
+str1.assign(cp, 5);     // str = "hello"
+str1.insert(str1.size(), cp+6); // str = "helloworld"
+```
+
+These assign and insert variants are available only for strings.
+
+### More string operations
+
+```cpp
+string s = "abc";
+s.append("def");
+// equivalent to
+string s1 = "abc"
+s.insert(s.size(), "def");
+string s = "hello world";
+s.replace(6, 5, "there");   // s == "hello there"
+// equivalent to
+string s1 = "hello world";
+s1.erase(6,5);
+s1.insert(6, "there");
+```
+
+There are other overloaded versions of these operators which can take iterator
+ranges instead of position and length.\
+Best not to remember all, just know that these exist, and lookup when required.
+
+### string search functions
+
+String search functions allow following variants
+
+1. Find 1st char/string which matches - `find`
+1. Find last char/string which matches - `rfind`
+1. Find 1st char which matches any character from argument string -
+   `find_first_of`
+1. `find_last_of` for reverse search of above.
+1. `find_first_not_of` - inverts above
+1. `find_last_not_of`
+
+These functions return the index if required character is found, return
+`string::npos` otherwise, which can be checked against for invalid index.\
+There also are overloads for each of above which allow to search only for a
+substring (starting from pos, upto n characters).
+
+### string compare
+
+`str.compare()` - Has 6 variants. In most general case, allows to compare part
+of a string to a part of another string. Also has variants which allow to
+compare against null terminated strings.
+
+---
+
+## container adapters
+
+Container adapters are higher level data structures built on top of contaisers,
+e.g., `stack`, `queue`, `priority_queue`\
+`stack` requires the operations like `push_back`, `pop_back` and `back` to
+support stack API (push, pop and top). Hence only those containers which support
+these can be valid as underlying containers for a stack. This includes `list`,
+`vector`, `deque` etc.\
+Any user defined type may also work.\
+`forward_list` and `array` won't work as they don't support these methods.
+
+```cpp
+stack<int> s1;  // backed by deque by default
+stack<int, vector<int>> s2; // backed by a vector of ints
+stack<int, forward_list<int>> s3; // not allowed, but no error yet
+s3.push(10);    // ERROR
+```
+
+`queue` requires pushing from front and popping from back. So, `vector` won't
+work for `queue`, but `list` or `deque` will.\
+`priority_queue` requires random access (think heap built on array like data
+structure), access to front and back, and ability to push at the back (required
+for adding element to priority queue before swim up operation) So, it will work
+with `vector` or `deque` as backing store, but not `list`.
+
+---
+
+## Generic Algorithms
+
+`begin` and `end` are global functions defined in `std` namespace which can
+return first and one past last iterator for the container passes in as argument.\
+These also works for C-style arrays, as long as its definition is visible. If
+array is passed as an argument, its size related information is lost, and
+`begin` or `end` cant be called on it.
+
+C++ compiler can automatically infer types for template arguments, when a
+function is called.
+
+```cpp
+template<typename T, typename U>
+size_t count(const T& begin_it, const T& end_it, U val ) {
+  // ...
+}
+
+// calling code
+size_t cnt = count(vec.begin(), vec.end(), 10); // OK
+// more verbose, with explicit template arguments.
+size_t cnt2 = count<vector<int>::iterator, int>(vec.begin(), vec.end(), 10);
+```
+
+## How iterators are passed to generic algorithms
+
+First 2 arguments are always the iterators to container on which the algorithm
+is to be applied. Some algorithms need 2 or more containers. In this case, the
+2nd container can be specified in 2 ways
+
+1. Using `begin` and `end` iterator.
+1. Only specify `begin` iterator. In this case, the implicit assumption is that
+   2nd container is atleast as big as the first one. It is a serious error
+   otherwise.
+
+`fill` and `fill_n` functions can be used to assign all elements a particular
+value. Note that it cannot add elements to container.
+
+`back_inserter` can be used to insert elements at the back of a container.
+It overloads assignment operator to insert element at the back.\
+Type - `std::back_inserter_iterator<std::vector<int>>`
+
+```cpp
+vector<int> vec {1,2,3};
+auto back_it = back_inserter(vec);
+*back_it = 4;   // (1)
+*back_it = 5;
+back_it = 6;    // (2)
+print(vec);     // 1 2 3 4 5 6
+cout << *back_it;   // ERROR
+```
+
+Dereferencing the iterator returns itself, so assignment overload works as
+expected. But this means dereferencing cannot be used to access any element.\
+This also means that (1) and (2) are equally valid.
+
+```cpp
+vector<int> vec;
+fill_n(begin(vec), 10, 0);  // ERROR: run time - vec is empty
+fill_n(back_inserter(vec), 10, 0);  // inserts 10 elements at back of 0 value
+```
+
+`copy` operation works as expected. It returns one past the last element to be
+copied at destination.
+
+```cpp
+vector<int> v1 {1,2,3};
+vector<int> v2;
+auto ret = copy(v1.begin(), v1.end(), back_inserter(v2));
+```
+
+### replace
+
+```cpp
+// Replace all occurences of 0 with 42
+replace(begin(vec), end(vec), 0, 42);
+// Copy all elements from vec to v2, replacing 0 with 42
+replace_copy(cbegin(vec), cend(vec), back_inserter(v2), 0, 42);
+Sorting and removing duplicates (popular idiom)
+// Assume a vector vec
+sort(begin(vec), end(vec));     // default sort
+auto end_unique = unique(begin(vec), end(vec));
+vec.erase(end_unique, end(vec));
+```
+
+`std::unique` rearranges a sorted list so that elements starting from the
+returned iterator, until the end of container are duplicates. They are
+eliminated in the above code by erase member method.
+
+---
+
+## Lambda functions
+
+lambda functions cannot take default arguments.
+
+Capture list in lambda is used only for non-static variables defined in the
+surrounding function. Lambda function can use local statics and names which are
+defined outside the surrounding function directly.\
+Special mention, lambda implicitly captures `this` (TODO - expand later)
+
+Anything captured by value is treated as const by lambda. If you really need to
+change the captured (by value) values use `mutable` keyword.
+
+```cpp
+int i = 10;
+auto lambda1 = [=]() { ++i ; cout << i; };  // ERROR
+auto lambda2 = [=]() mutable { ++i ; cout << i; };   // OK
+```
+
+If lambda body contains anything more that a single return statement, its return
+type must be explicitly specified. Otherwise, it is assumed to return `void`.
+For example following code transforms input vector of integers to contain
+absolute values of all elements
+
+```cpp
+vector<int> v = {-1,2,-3};
+
+// OK
+std::transform(v.begin(), v.end(), v.begin(), [](int i) {
+  return i >= 0 ? i : -i;
+});
+
+// FAIL, as lambda is inferred to return void, which is not compatible with
+// signature of std::transform
+std::transform(v.begin(), v.end(), v.begin(), [](int i) {
+  if (i >= 0)
+    return i;
+  else return -i;
+});
+
+// OK - Return type explicitly specified
+std::transform(v.begin(), v.end(), v.begin(), [](int i) -> int {
+  if (i >= 0)
+    return i;
+  else return -i;
+});
+```
+
+---
+
+### Stream iterators
+
+Code which uses stream iterators to transform a list of integers to their squares
+
+```cpp
+ifstream ifs("input_integers.txt");
+ofstream ofs("output_integers.txt");
+
+istream_iterator<int> ist(ifs), eof;
+ostream_iterator<int> ost(ofs, " ");
+
+std::transform(ist, eof, ost, [](int i) {
+  return i*i;
+});
+```
+
+`istream_iterator` takes a single argument, which is `istream` from which to
+read. The version without argument represents *end of file* iterator.\
+`ostream_iterator` takes 1 or 2 arguments. 2 argument version adds the 2nd
+argument (string) after every element of the templated type object written to
+underlying `ostream`.
+
+stream iterators do not support reverse iteration.
+
+---
+
+## Reverse iterator
+
+Suppose you want to print the last word from a string containing comma separated
+words.
+
+```cpp
+string str = "one,two,three";
+// find last comma
+string::pos rcomma = find(str.crbegin(), str.crend(), ',');
+```
+
+`rcomma` is a reverse iterator, ++ on this moves backwards. To find last word,
+we need a corresponding forward iterator.
+
+```cpp
+string last(rcomma.base(), str.cend());
+```
+
+`base()` provides the underlying iterator, which is one after the reverse
+iterator. Hence, `rend()`'s base is `begin()`, and `rbegin()`'s base is `end()`
+
+---
+
+## Associative containers
+
+There are 2 ways to enable associative containers to store custom objects.
+
+1. Overload < operator for the object type. \
+   The default implementation uses a comparator of type `std::less<T>` to
+   compare keys, which internally uses overloaded < operator.
+1. Define a custom comparator function or functor and pass it to ctor. Its type
+   also needs to be specified as template parameter
+
+```cpp
+class MyType;
+bool compareMyType(const MyType& a, const MyType& b);
+
+set<MyType, bool(*)(const MyType& a, const MyType& b)> s1(compareMyType);
+
+// Here lambda is convertibe to function pointer since its capture list
+// is empty.
+auto lambda = [](const MyType& a, const MyType& b) { ... };
+set<MyType, bool(*)(const MyType& a, const MyType& b)> s2(lambda);
+
+bool operator<(const MyType& a, const MyType& b) { ... };
+// same as not specifying comparator, as long as operator< is defined
+set<MyType, std::less<MyType>> s3(std::less<MyType>());
+```
+
+### Type aliases defined by associative containers
+
+1. `key_type` - type of key
+1. `mapped_type` - type of mapped value, only valid for `maps`
+1. `value_type` - same as `key_type` for `sets`, `pair<key_type, mapped_type>`
+   for `maps`. This is defined for sequential containers as well.
+
+These can be used to get the type of underlying container. Its generally useful
+in template metaprogramming.
+
+```cpp
+template<typename C>
+typename C::value_type sum_(const C& cont)
+{
+    typename C::value_type total = 0;     //  (1)
+    for (const auto& e : cont)
+        total += e;
+    return total;
+}
+```
+
+This type of code wouldn't be possible without `value_type` alias.
+
+#### Why is `typename` required in the line (1)
+
+Without `typename` there is no way to know if `C::value_type` refers to a type
+or a value, since `C` is not bound to a concrete type before template
+initialization. In this particular case, it may seem that this can be inferred
+from context, but that's not always the case. For example
+
+```cpp
+C::x * p;
+```
+
+If `x` is a type, `p` is a pointer, otherwise, we are multiplying 2 values.
+
+Iterators for `map` yield `pair`, not keys. Keys are always constant in
+associative containers.
+Hence, even though `set` defines both const and non const iterators, both
+behave the same. Its a compiler error to change the value of an element in set
+using non const iterators.
+
+---
+
+### Map insertion
+
+* `insert` operation on map takes a `pair` as argument.
+* `insert` can take a input iterators of pairs. If multiple pairs have same key
+value, only the first element from input list will be inserted
+* `insert` operation can also take a position iterator as *hint* which can
+  potentially speed up the insertion operation. The position should specify an
+  iterator which is known to preceed where the element will be inserted.
+* If the key corresponding to the value inserted is already in the `map`,
+  `insert` operation does nothing. For multimaps, it inserts the duplicate
+  entry.
