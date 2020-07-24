@@ -314,3 +314,70 @@ typedef decltype(f) ftype4;
 ```
 
 This also works, but not in case the function `f` is overloaded.
+
+---
+
+## Assignment and copy constructors
+
+In (1), copy constructor of A is called, not assignment operator. In (2), assigment operator is used.
+
+```cpp
+A B::getA() {               // v1
+    return this->a;
+}
+A& B::getA() {              // v2
+    return this->a;
+}
+A obj1 = objB.getA();       // (1)
+A obj2;
+obj2 = objB.getA();         // (2)
+
+const A& obj3 = objB.getA();   // (3)
+A& obj4 = objB.getA();         // (4)
+```
+
+In case `getA()` is defined like v1, copy constructor will always be called when
+returning the object. Copy ctor is called once for (3). However, if call is made
+like (1), copy ctor is still called only once as the returned temporary is
+assigned to obj1.\
+In case of v2 and (1), `getA()` returns a reference but it is copied to obj1.
+Hence copy constructor is called again (only once) here. In case of (3) and
+`getA()` defined as in v1, it is error to omit `const`, as plain non const
+reference cannot refer to a temporary returned by `getA()` method.\
+(4) is valid only with v2. In this case copy ctor is not called.\
+If (2) is used with v1, copy constructor is called to create a temporary object
+to return by value. Assignment operator is also called.
+
+---
+
+* A friend declaration only specifies access, that is, this function can access
+  private variables. It is NOT a substitute for declaration, which is required
+  by any users outside the class. It may appear to work in some cases due to ADL
+  (*Argument dependent lookup*, later on this), however it will not work always
+  like a real declaration.
+
+* Within a class declaration, members which define a type must appear before
+  they are used. This has something to do with name lookup (later). This
+  restriction is not applicable to data or function members. For example,
+
+```cpp
+class Screen {
+public:
+    using pos = std::string::size_type;
+private:
+    pos cursor_;
+}
+```
+
+* If you make a function inline, its definition needs to be visible to compiler.
+  That is, the function must be defined in header class itself.
+
+* A `const` member function that returns `*this` should have a return type that
+  is a const reference.
+
+* It is possible to overload a function based on its const-ness. A const
+  function will only match to a const calling object. However, a non const
+  function can call both a const version as well as a non const version, but
+  non const version is a better match (among 2 viable functions)
+
+---
