@@ -130,6 +130,18 @@ string s5("Hello");
 string s6(3, 'c');      // "ccc"
 ```
 
+A few crazy constructor variations below.
+
+```cpp
+string s1("abcd", 3);   // "abc
+string s2 = "hello";
+string s3(s2, 3);       // "lo"
+```
+
+The variant which takes string literal and a number `n` takes first n
+characters. The variant which take a string and `n` takes characters from index
+n to end. Crazy stuff!
+
 `getline` function reads from stream upto and including where it finds a
 newline character, and stores it in the string, without newline character.\
 So, newline character is consumed from stream, but not stored in string.
@@ -151,11 +163,12 @@ string s3 = "abc" + "def" + s1; // ERROR
 
 Initialization of `s3` is invalid as one of the operands to `+` has to be a
 string. This is not a problem for `s2`, as `s1 + "def"` yields a temporary
-string object which can be valid left operand to + operator.
+string object which can be valid left operand to + operator.\
+Also, single characters can be appended to string using `+` operator.
 
-Be careful while mixing signed and unsigned types in comparison expressions.
-This prints `false` (0) as i is converted to `unsigned int` which wraps up to a
-very large number.
+Be very careful while mixing signed and unsigned types in comparison
+expressions. This prints `false` (0) as i is converted to `unsigned int` which
+wraps up to a very large number.
 
 ```cpp
 int i = -10;
@@ -195,15 +208,15 @@ Using range based for loop with multidimensional arrays
 
 ```cpp
 int b[3][4] = {1,2,3,4,5,6,7,8,9,10,11,12};
-for(auto row : b) {         // (1) ERROR
-    for(auto col : row) {
+for(auto row : b) {           // (1)
+    for(auto col : row) {     // ERROR
         cout << col << " ";
     }
     cout << endl;
 }
 ```
 
-The above code does not compile. (1) tries to copy 1D array to row, which ends
+The above code does not compile. (1) tries to copy 1D array to `row`, which ends
 up copying the `int*` pointer. `int*` is not iterable using `begin()` method.
 Hence, this is an error.\
 The fix is simple. Change (1) to `const auto& row : b`
@@ -232,7 +245,7 @@ Here, p3 is an array of int pointers. Size of array is 4.
 
 ---
 
-const_cast can be used to change a const to non const type. However, if the
+`const_cast` can be used to change a const to non const type. However, if the
 object was originally const, the result of writing to it after casting away
 constness is undefined.
 
@@ -319,7 +332,8 @@ This also works, but not in case the function `f` is overloaded.
 
 ## Assignment and copy constructors
 
-In (1), copy constructor of A is called, not assignment operator. In (2), assigment operator is used.
+In (1), copy constructor of A is called, not assignment operator. In (2),
+assigment operator is used.
 
 ```cpp
 A B::getA() {               // v1
@@ -356,9 +370,9 @@ to return by value. Assignment operator is also called.
   (*Argument dependent lookup*, later on this), however it will not work always
   like a real declaration.
 
-* Within a class declaration, members which define a type must appear before
-  they are used. This has something to do with name lookup (later). This
-  restriction is not applicable to data or function members. For example,
+* Within a class declaration, *type* definitions must appear before they are
+  used. This has something to do with name lookup (later). This restriction is
+  not applicable to data or function members. For example,
 
 ```cpp
 class Screen {
@@ -856,7 +870,7 @@ Access members return an ordinary reference, if the container is not a const
 object. So, following code is valid
 
 ```cpp
-vector<int> vec = {1,2,3};
+vector<int> vec = {1,2,3};  
 cout << (v.front() = 4);    // 4
 ```
 
@@ -1130,7 +1144,7 @@ auto ret = copy(v1.begin(), v1.end(), back_inserter(v2));
 replace(begin(vec), end(vec), 0, 42);
 // Copy all elements from vec to v2, replacing 0 with 42
 replace_copy(cbegin(vec), cend(vec), back_inserter(v2), 0, 42);
-Sorting and removing duplicates (popular idiom)
+// Sorting and removing duplicates (popular idiom)
 // Assume a vector vec
 sort(begin(vec), end(vec));     // default sort
 auto end_unique = unique(begin(vec), end(vec));
@@ -1317,8 +1331,273 @@ using non const iterators.
 * `insert` can take a input iterators of pairs. If multiple pairs have same key
 value, only the first element from input list will be inserted
 * `insert` operation can also take a position iterator as *hint* which can
-  potentially speed up the insertion operation. The position should specify an
-  iterator which is known to preceed where the element will be inserted.
+  potentially speed up the insertion operation (Look up when necessary).
 * If the key corresponding to the value inserted is already in the `map`,
   `insert` operation does nothing. For multimaps, it inserts the duplicate
   entry.
+* Return type
+  * Single element insertion - Returns a `pair` with 2nd element as a bool value
+    indicating if insert was successful. 1st value is an iterator to either the
+    inserted key or pre-existing key.
+  * Single element insertin with hint - Returns inserted iterator, or one which
+    pre existed. No boolean is returned.
+  * Range of elements - `void`
+  * Insertions in `multimap` or `multiset` - Iterator to inserted pair, bool is
+    not required as insertion will always happen.
+
+### Map erase
+
+* Has same versions as sequential containers.
+* Has another version which takes an argument of `key` type and deletes all the
+  occurrences of that key from `set`/`map`. Returns number of elements deleted.
+
+### Subscripting
+
+* subscripting is supported for maps. Not supported for set (no value associated
+  with key), and multimap (more than one possible value for key).
+* subscripting inserts the key if not already present.
+* Hence, subscripting is possible only for non-const maps
+
+```cpp
+map<string, int> word_count;
+cout << word_count["abc"];   // 0
+cout << word_count.size();   // 1, previous statement inserted a word-count pair
+```
+
+### Other operations
+
+All the below options take a key type argument
+
+* `find` - returns first element with given key. If not present, returns end
+  iterator to map
+* `count` - number of occurrences of given key
+* `lower_bound` - iterator to first element with key greater than or equal to
+  given key. Valid only for ordered maps/sets
+* `upper_bound` - iterator to first element with key greater than given key. Not
+  valid for unordered containers. Will be same as `lower_bound` if key does not
+  exist in map/set.
+* `equal_range` - returns `pair` of iterators which contain all elements with
+  given key. Valid also for unordered types.
+
+---
+
+## `std::bind`
+
+Returns a function object based on passed function/callable, and bound to passed
+in args.
+Works with all callable objects. Can also call member functions of a class.
+
+```cpp
+void func(int x, int y) {}           // (1)
+
+class Callable {
+public:
+  void operator()(int x, int y) {}   // (2)
+  void func(int x, int y) {}          // 3)
+};
+
+int main() {
+  std::bind(func, 77,33)();           // Calls (1)      (4)
+  std::bind(Callable(), 77, 33)();    // Calls (2)
+  Callable obj;
+  std::bind(&Callable::func, &obj, 77, 33)();   // Calls (3)    (5)
+  auto cp = std::make_unique<Callable>();
+  std::bind(&Callable::func, std::move(cp), 10, 20)();  // Calls (3)
+  // Can't use cp now
+}
+```
+
+When calling member functions, the 2nd argument needs to provide the address of
+object on which to call the function.\
+Since smart pointers overload `->` operator, they can also be used.\
+Here, `unique_ptr` needs to be moved since it can't be copied, and `bind`
+function makes copies of its arguments.
+
+Generally, we can directly pass a function name where function pointer is
+expected. However, if the function is a class member, it needs to be explicitly
+passed as a pointer. Hence, (4) can pass `func` directly, but in line (5),
+function needs to be passed explicitly as a pointer.
+
+---
+
+### Most Vexing Parse
+
+This is a very common error, which is fortunately discoverable at compile time.
+
+```cpp
+class BackgroundTask {
+  //...
+};
+
+thread t(BackgroundTask());
+t.join();  // ERROR
+```
+
+Here, `t` is expected to create a new thread. However, compiler interprets it as
+follows. `t` should be a function that returns a thread, and takes as parameter
+a function pointer which takes no arguments and returns a `BackgroundTask`.\
+Hence, when we attempt to call `join` on `t`, it fails with a compiler error.
+
+It can be resolved as follows
+
+```cpp
+// Use double parenthesis
+thread t1((BackgroundTask()));
+// Use uniform initialization syntax
+thread t2{BackgroundTask()};
+```
+
+---
+
+## Managing threads
+
+When creating a thread object, either `join` or `detach` method needs to be
+called on it before the thread object is destroyed. Note that thread's lifetime
+is not the same as thread object's lifetime. If any of these is not called,
+thread object's destructor calls `std::terminate` and the process is killed.
+
+Joining for thread using RAII
+
+```cpp
+class ThreadGuard {
+public:
+  ThreadGuard(thread& t): t_(t) {}
+  ~ThreadGuard() {
+    if(t_.joinable()) {
+      t_.join();
+    }
+  }
+  // delete copy ctor
+  ThreadGuard(const ThreadGuard&) = delete;
+  // delete assignment ctor
+  ThreadGuard& operator=(const ThreadGuard&) = delete;
+private:
+  thread& t_;
+};
+
+void foo();
+
+int main() {
+  thread t(foo);
+  ThreadGuard guard(t);
+}
+```
+
+RAII ensures that thread is always joined when thread object is destroyed, as
+long as `join` or `detach` hasn't already been called on it.\
+Local objects in a scope are pushed to a stack in the order they are created.
+Since `guard` is created after thread `t`, it will also be destroyed first. If
+this was not gauranteed, the above approach could fail.
+
+## Passing arguments to thread function
+
+```cpp
+void foo(int val);
+
+int main() {
+  std::thread t(foo, 10);
+  t.join();
+}
+```
+
+Here, 10 is *copied* to thread object `t`'s storage, and when an actual thread
+is created, that object is passed to `foo()`. This behavior can cause lifetime
+related issues when a thread is detached.
+
+```cpp
+void f(const string& str) {
+  cout << "Inside f with " << str << endl;
+}
+void oops() {
+  char buffer[1024] = "Hello there!";
+  thread t(f, buffer);      // undefined behavior
+  t.detach();
+}
+```
+
+When `t` is created, `buffer` (which is a `char*`) is copied to `t`'s storage.
+Its very likely that `f()` has not begun its execution when `oops` exits and
+`buffer` is freed. Since `char*` to `const string&` conversion does not happen
+until `f` is called, this will lead to undefined behavior.
+
+> This can be confirmed by running the program with **TSAN** (thread sanitizer).
+  We need to pass `-fsanitize=thread` option while building the program (with
+  clang).
+
+The solution is simple. Convert `buffer` to `std::string` while passing in to
+thread constructor as argument.
+
+```cpp
+thread t(f, std::string(buffer));
+```
+
+### Passing non const reference to thread function
+
+By default, arguments are copied to thread object, and when the thread callable
+is called, the object is passed to callable as rvalues, as if they were
+temporaries (TODO - I dont yet understand the reason for this).\
+Hence, declaring argument of thread function as non const reference is an error.
+
+```cpp
+void foo(int& iref) {
+  iref *= 2;
+}
+
+int main() {
+  int i = 10;
+  thread t(foo, i);   // ERROR    (1)
+  t.join();
+  cout << i << endl;
+}
+```
+
+The solution is quite strightforward. We can wrap the argument inside
+`std::ref`.
+
+```cpp
+thread t(foo, std::ref(i));
+```
+
+The argument passing mechanisms are still the same. `std::ref` wraps around
+its argument taken as a reference.  The `reference_wrapper` object returned by
+`std::ref` is copyable and provides an implicit reference conversion to a non
+const reference (much like streams provide implicit boolean conversion method).
+
+This mechanism is very similiar to hoo `std::bind` handles its arguments. This
+means that we can use the same mechanism to pass member functions as a thread
+callable function, by providing call context.
+
+```cpp
+class X {
+public:
+  void do_some_work();
+};
+
+int main() {
+  X xobj;
+  std::thread t(&X::do_some_work, &xobj);
+  t.join();
+}
+```
+
+### Transferring ownership of thread
+
+thread objects support *move*. Like `unique_ptr`, they are not copyable, but can
+be moved to transfer ownership.
+
+```cpp
+void foo();
+int main() {
+  thread t1(foo);
+  thread t2 = t1;   // ERROR, copy not supported.
+  thread t3 = std::move(t1);  // OK, transfers ownership
+  t3.join();
+}
+```
+
+For simple cases where thread needs to be joined before it exits scope, we can
+create a scoped_thread object which takes ownership of thread, and automatically
+calls `join` when the thead object is destroyed.\
+C++20 contains a `jthread` class which does exactly that.
+
+---
