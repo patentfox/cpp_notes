@@ -1,4 +1,4 @@
-# C++ Learnings
+# C++ Learnings 1
 
 ## auto
 
@@ -14,18 +14,28 @@ auto ignores top level const-ness while deducing type. However, low level
 const-ness is preserved.
 
 ```cpp
-const int i = 0;    // top level const
+const int i = 0;    // top level const, i is const
 int j = 0;
-// lower level const. Here, p is const, value of j can still be changed via p
+// top level const. Here, p is const, value of j can still be changed via p
 int* const p = &j;
+auto ptr1 = p;   // ptr has type int*
+int k = 0;
+ptr1 = &k;       // OK
+
+// low level const, q can point to something else, but value of j cannot be
+// changed via q
+const int* q = &j;
+auto ptr2 = q;    // q is a pointer to const, type is `int *const`
+*ptr2 = 10;       // ERROR
 ```
 
 ```cpp
 const int ci = 1, &cr = ci;
 int& r = ci;    // ERROR: cannot bind int& to const int
-auto b = ci;    // top level const is dropped
+auto b = ci;    // top level const is dropped, b is not const
 b = 10;
-auto c = cr;    // cr is alias for ci, which has top level const
+auto c = cr;    // cr is alias for ci, which has top level const, type is
+                // deduced as int
 c = 20;
 
 // d is deduced to be of type const int*, which is a pointer to const int
@@ -1601,3 +1611,8 @@ calls `join` when the thead object is destroyed.\
 C++20 contains a `jthread` class which does exactly that.
 
 ---
+
+## Template Argument Deduction
+
+Template parameters are decided based on the arguments we pass to template
+function.
